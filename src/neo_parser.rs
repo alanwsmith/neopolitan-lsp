@@ -49,16 +49,16 @@ pub fn dashes() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
 //     none_of(" \n\t")
 //         .repeated()
 //         .collect::<String>()
-//         .map_with_span(|val, span| (Token::Text(val), span))
+//         .map_with_span(|val, span| (Token::String(val), span))
 //         .repeated()
 //         .exactly(1)
 // }
 
-// pub fn initial_chars() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     // The start of a word with either a single character or
-//     // a single "<" followed by a non "<" character
-//     non_less_than_char().or(less_than_with_char())
-// }
+pub fn initial_chars() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    // The start of a word with either a single character or
+    // a single "<" followed by a non "<" character
+    non_less_than_char().or(less_than_with_char())
+}
 
 pub fn less_than_with_char() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // for finding a less than at the start of a word
@@ -149,29 +149,29 @@ mod test {
         assert_eq!(left, right);
     }
 
-    // #[test]
-    // fn initial_chars_xxx_starting_with_letter() {
-    //     let src = "foxtrot";
-    //     let left = Some(vec![(Token::Text("f".to_string()), 0..1)]);
-    //     let (right, _err) = initial_chars().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn initial_chars_xxx_starting_with_letter() {
+        let src = "foxtrot";
+        let left = Some(vec![Token::String("f".to_string(), 0..1)]);
+        let (right, _err) = initial_chars().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
-    // #[test]
-    // fn initial_chars_xxx_test_with_leading_lt() {
-    //     let src = "<hotel";
-    //     let left = Some(vec![
-    //         (Token::Text("<".to_string()), 0..1),
-    //         (Token::Text("h".to_string()), 1..2),
-    //     ]);
-    //     let (right, _err) = initial_chars().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn initial_chars_xxx_test_with_leading_lt() {
+        let src = "<hotel";
+        let left = Some(vec![
+            Token::String("<".to_string(), 0..1),
+            Token::String("h".to_string(), 1..2),
+        ]);
+        let (right, _err) = initial_chars().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
     // #[test]
     // fn following_chars_xxx_basic_test() {
     //     let src = "elta echo";
-    //     let left = Some(vec![(Token::Text("elta".to_string()), 0..4)]);
+    //     let left = Some(vec![(Token::String("elta".to_string()), 0..4)]);
     //     let (right, _err) = following_chars().parse_recovery(src);
     //     assert_eq!(left, right);
     // }
@@ -180,9 +180,9 @@ mod test {
     // fn word_xxx_with_leading_lt() {
     //     let src = "<hotel";
     //     let left = Some(vec![
-    //         (Token::Text("<".to_string()), 0..1),
-    //         (Token::Text("h".to_string()), 1..2),
-    //         (Token::Text("otel".to_string()), 2..6),
+    //         (Token::String("<".to_string()), 0..1),
+    //         (Token::String("h".to_string()), 1..2),
+    //         (Token::String("otel".to_string()), 2..6),
     //     ]);
     //     let (right, _err) = word().parse_recovery(src);
     //     assert_eq!(left, right);
@@ -235,12 +235,12 @@ mod test {
     // fn paragraph_xxx_basic() {
     //     let src = "charlie papa mike";
     //     let left = Some(vec![
-    //         (Token::Text("c".to_string()), 0..1),
-    //         (Token::Text("harlie".to_string()), 1..7),
-    //         (Token::Text("p".to_string()), 8..9),
-    //         (Token::Text("apa".to_string()), 9..12),
-    //         (Token::Text("m".to_string()), 13..14),
-    //         (Token::Text("ike".to_string()), 14..17),
+    //         (Token::String("c".to_string()), 0..1),
+    //         (Token::String("harlie".to_string()), 1..7),
+    //         (Token::String("p".to_string()), 8..9),
+    //         (Token::String("apa".to_string()), 9..12),
+    //         (Token::String("m".to_string()), 13..14),
+    //         (Token::String("ike".to_string()), 14..17),
     //     ]);
     //     let (right, _err) = paragraph().parse_recovery(src);
     //     assert_eq!(left, right);
