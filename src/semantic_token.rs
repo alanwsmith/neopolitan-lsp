@@ -5,14 +5,29 @@ use tower_lsp::lsp_types::{SemanticTokenType};
 use crate::chumsky::{Expr, Func, ImCompleteSemanticToken, Spanned};
 
 pub const LEGEND_TYPE: &[SemanticTokenType] = &[
-    SemanticTokenType::FUNCTION,
-    SemanticTokenType::VARIABLE,
-    SemanticTokenType::STRING,
+    SemanticTokenType::CLASS,
     SemanticTokenType::COMMENT,
-    SemanticTokenType::NUMBER,
+    SemanticTokenType::DECORATOR,
+    SemanticTokenType::ENUM,
+    SemanticTokenType::ENUM_MEMBER,
+    SemanticTokenType::EVENT,
+    SemanticTokenType::FUNCTION,
+    SemanticTokenType::INTERFACE,
     SemanticTokenType::KEYWORD,
+    SemanticTokenType::MACRO,
+    SemanticTokenType::METHOD,
+    SemanticTokenType::MODIFIER,
+    SemanticTokenType::NAMESPACE,
+    SemanticTokenType::NUMBER,
     SemanticTokenType::OPERATOR,
     SemanticTokenType::PARAMETER,
+    SemanticTokenType::PROPERTY,
+    SemanticTokenType::REGEXP,
+    SemanticTokenType::STRING,
+    SemanticTokenType::STRUCT,
+    SemanticTokenType::TYPE,
+    SemanticTokenType::TYPE_PARAMETER,
+    SemanticTokenType::VARIABLE,
 ];
 
 pub fn semantic_token_from_ast(ast: &HashMap<String, Func>) -> Vec<ImCompleteSemanticToken> {

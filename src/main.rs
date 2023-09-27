@@ -7,6 +7,7 @@ use nrs_language_server::completion::completion;
 use nrs_language_server::jump_definition::get_definition;
 use nrs_language_server::reference::get_reference;
 use nrs_language_server::semantic_token::{semantic_token_from_ast, LEGEND_TYPE};
+use nrs_language_server::neo_parser::*;
 use ropey::Rope;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -478,7 +479,81 @@ impl Backend {
         self.document_map
             .insert(params.uri.to_string(), rope.clone());
 
-        let (ast, _errors, semantic_tokens) = parse(&params.text);
+        let (base_tokens, errors) = neo_parse(&params.text);
+
+        let semantic_tokens = match base_tokens {
+            Some(tokens) => {
+                tokens
+                .iter()
+                .filter_map(|token| {
+                    dbg!(&token);
+                    match token {
+                        NeoToken::Class(_, span) => Some(ImCompleteSemanticToken {
+                            start: span.start,
+                            length: span.len(),
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::CLASS)
+                                .unwrap(),
+                        }),
+                        NeoToken::Decorator(_, span) => Some(ImCompleteSemanticToken {
+                            start: span.start,
+                            length: span.len(),
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::DECORATOR)
+                                .unwrap(),
+                        }),
+                        _  => None
+                    }
+                })
+                .collect::<Vec<_>>()
+            }
+            None => vec![]
+        };
+
+        // let semantic_tokens = base_tokens
+        // .iter()
+        // .filter_map(|token| {
+        //     dbg!(&token);
+        //     match token {
+        //         NeoToken::Class(_, span) => Some(ImCompleteSemanticToken {
+        //             start: span.start,
+        //             length: span.len(),
+        //             token_type: LEGEND_TYPE
+        //                 .iter()
+        //                 .position(|item| item == &SemanticTokenType::CLASS)
+        //                 .unwrap(),
+        //         }),
+        //         NeoToken::Decorator(_, span) => Some(ImCompleteSemanticToken {
+        //             start: span.start,
+        //             length: span.len(),
+        //             token_type: LEGEND_TYPE
+        //                 .iter()
+        //                 .position(|item| item == &SemanticTokenType::DECORATOR)
+        //                 .unwrap(),
+        //         }),
+        //         _  => None
+        //     }
+        // })
+        // .collect::<Vec<_>>();
+
+
+
+    let ast: Option<HashMap<String, Func>> = Some(HashMap::new());
+    // let _errors = Vec::new();
+    // let semantic_tokens = vec![];
+
+
+
+    // (Some(ast), Vec::new(), semantic_tokens)
+
+
+
+
+
+
+        // let (ast, _errors, semantic_tokens) = parse(&params.text);
         // self.client
         //     .log_message(MessageType::INFO, format!("{:?}", errors))
         //     .await;
@@ -579,96 +654,96 @@ fn offset_to_position(offset: usize, rope: &Rope) -> Option<Position> {
 /////////////////////////////////////////////////////////////////
 
 use chumsky::prelude::*;
-use chumsky::Parser;
+// use chumsky::Parser;
 
-type Span = std::ops::Range<usize>;
+// type Span = std::ops::Range<usize>;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-enum Token {
-    Word(String),
-    SectionHead(String),
-}
+// #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+// enum Token {
+//     Word(String),
+//     SectionHead(String),
+// }
 
-#[derive(Debug, PartialEq)]
-struct Section {
-    body: Vec<(Token, Span)>,
-    header: (Token, Span),
-}
+// #[derive(Debug, PartialEq)]
+// struct Section {
+//     body: Vec<(Token, Span)>,
+//     header: (Token, Span),
+// }
 
-// these are Vecs so they can be used with initi_chars together
-fn non_less_than_char() -> impl Parser<char, Vec<char>, Error = Simple<char>> {
-    none_of("< \n\t").repeated().exactly(1)
-}
+// // these are Vecs so they can be used with initi_chars together
+// fn non_less_than_char() -> impl Parser<char, Vec<char>, Error = Simple<char>> {
+//     none_of("< \n\t").repeated().exactly(1)
+// }
 
-fn less_than_with_char() -> impl Parser<char, Vec<char>, Error = Simple<char>> {
-    just('<')
-        .then(non_less_than_char())
-        .map(|out| vec![out.0, out.1[0]])
-}
+// fn less_than_with_char() -> impl Parser<char, Vec<char>, Error = Simple<char>> {
+//     just('<')
+//         .then(non_less_than_char())
+//         .map(|out| vec![out.0, out.1[0]])
+// }
 
-fn initial_chars() -> impl Parser<char, Vec<char>, Error = Simple<char>> {
-    non_less_than_char().or(less_than_with_char())
-}
+// fn initial_chars() -> impl Parser<char, Vec<char>, Error = Simple<char>> {
+//     non_less_than_char().or(less_than_with_char())
+// }
 
-fn following_chars() -> impl Parser<char, String, Error = Simple<char>> {
-    none_of(" \n\t").repeated().collect::<String>()
-}
+// fn following_chars() -> impl Parser<char, String, Error = Simple<char>> {
+//     none_of(" \n\t").repeated().collect::<String>()
+// }
 
-fn word() -> impl Parser<char, (Token, Span), Error = Simple<char>> {
-    initial_chars()
-        .then(following_chars())
-        .map_with_span(|(a, b), span| {
-            let mut s = String::from_iter(a);
-            s.push_str(&b);
-            (Token::Word(s), span)
-        })
-}
+// fn word() -> impl Parser<char, (Token, Span), Error = Simple<char>> {
+//     initial_chars()
+//         .then(following_chars())
+//         .map_with_span(|(a, b), span| {
+//             let mut s = String::from_iter(a);
+//             s.push_str(&b);
+//             (Token::Word(s), span)
+//         })
+// }
 
-fn whitespace() -> impl Parser<char, char, Error = Simple<char>> {
-    just(' ').or(just('\t'))
-}
+// fn whitespace() -> impl Parser<char, char, Error = Simple<char>> {
+//     just(' ').or(just('\t'))
+// }
 
-fn newline() -> impl Parser<char, char, Error = Simple<char>> {
-    just('\n')
-}
+// fn newline() -> impl Parser<char, char, Error = Simple<char>> {
+//     just('\n')
+// }
 
-fn wordbreak() -> impl Parser<char, char, Error = Simple<char>> {
-    whitespace().or(newline())
-}
+// fn wordbreak() -> impl Parser<char, char, Error = Simple<char>> {
+//     whitespace().or(newline())
+// }
 
-fn paragraph() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
-    word().separated_by(wordbreak()).then_ignore(empty_line())
-}
+// fn paragraph() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+//     word().separated_by(wordbreak()).then_ignore(empty_line())
+// }
 
-fn empty_line() -> impl Parser<char, String, Error = Simple<char>> {
-    newline()
-        .then(newline())
-        .map(|(a, b)| format!("{}{}", a, b))
-}
+// fn empty_line() -> impl Parser<char, String, Error = Simple<char>> {
+//     newline()
+//         .then(newline())
+//         .map(|(a, b)| format!("{}{}", a, b))
+// }
 
-fn section_title() -> impl Parser<char, (Token, Span), Error = Simple<char>> {
-    just("-- title")
-        .or(just("-- code"))
-        .map_with_span(|a, b| (Token::SectionHead(a.to_string()), b))
-}
+// fn section_title() -> impl Parser<char, (Token, Span), Error = Simple<char>> {
+//     just("-- title")
+//         .or(just("-- code"))
+//         .map_with_span(|a, b| (Token::SectionHead(a.to_string()), b))
+// }
 
-fn section_title_without_empty_line() -> impl Parser<char, (Token, Span), Error = Simple<char>> {
-    section_title().then_ignore(empty_line())
-}
+// fn section_title_without_empty_line() -> impl Parser<char, (Token, Span), Error = Simple<char>> {
+//     section_title().then_ignore(empty_line())
+// }
 
-fn section() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
-    section_title_without_empty_line()
-        .then(paragraph())
-        .map(|(a, mut b)| {
-            let mut out = vec![a];
-            out.append(&mut b);
-            out
-        })
-}
+// fn section() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+//     section_title_without_empty_line()
+//         .then(paragraph())
+//         .map(|(a, mut b)| {
+//             let mut out = vec![a];
+//             out.append(&mut b);
+//             out
+//         })
+// }
 
-fn sections() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
-    section().repeated().flatten()
-}
+// fn sections() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+//     section().repeated().flatten()
+// }
 
 fn parse(
     src: &str,
@@ -677,33 +752,36 @@ fn parse(
     Vec<Simple<String>>,
     Vec<ImCompleteSemanticToken>,
 ) {
-    let tokens = sections().parse(src).unwrap();
+    // let tokens = sections().parse(src).unwrap();
     // dbg!(tokens);
 
-    let semantic_tokens = tokens
-        .iter()
-        .filter_map(|token| {
-            dbg!(&token);
-            match token {
-                (Token::Word(_), _) => Some(ImCompleteSemanticToken {
-                    start: token.1.start,
-                    length: token.1.len(),
-                    token_type: LEGEND_TYPE
-                        .iter()
-                        .position(|item| item == &SemanticTokenType::NUMBER)
-                        .unwrap(),
-                }),
-                (Token::SectionHead(_), _) => Some(ImCompleteSemanticToken {
-                    start: token.1.start,
-                    length: token.1.len(),
-                    token_type: LEGEND_TYPE
-                        .iter()
-                        .position(|item| item == &SemanticTokenType::KEYWORD)
-                        .unwrap(),
-                }),
-            }
-        })
-        .collect::<Vec<_>>();
+    // let semantic_tokens = tokens
+    //     .iter()
+    //     .filter_map(|token| {
+    //         dbg!(&token);
+    //         match token {
+    //             _ => None 
+    //             // (Token::Word(_), _) => Some(ImCompleteSemanticToken {
+    //             //     start: token.1.start,
+    //             //     length: token.1.len(),
+    //             //     token_type: LEGEND_TYPE
+    //             //         .iter()
+    //             //         .position(|item| item == &SemanticTokenType::NUMBER)
+    //             //         .unwrap(),
+    //             // }),
+    //             // (Token::SectionHead(_), _) => Some(ImCompleteSemanticToken {
+    //             //     start: token.1.start,
+    //             //     length: token.1.len(),
+    //             //     token_type: LEGEND_TYPE
+    //             //         .iter()
+    //             //         .position(|item| item == &SemanticTokenType::KEYWORD)
+    //             //         .unwrap(),
+    //             // }),
+    //         }
+    //     })
+    //     .collect::<Vec<_>>();
+
+    let semantic_tokens = vec![];
 
     let ast: HashMap<String, Func> = HashMap::new();
 
