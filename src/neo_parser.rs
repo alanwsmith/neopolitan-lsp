@@ -42,9 +42,9 @@ pub fn dashes() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
         .exactly(1)
 }
 
-// pub fn empty_line() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     newline().chain(newline())
-// }
+pub fn empty_line() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    newline().chain(newline())
+}
 
 pub fn following_chars() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // Used to pull characters in a word or string after the
@@ -90,9 +90,9 @@ pub fn non_less_than_char() -> impl Parser<char, Vec<Token>, Error = Simple<char
         .exactly(1)
 }
 
-// pub fn paragraph() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     word().separated_by(wordbreak()).flatten()
-// }
+pub fn paragraph() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    word().separated_by(wordbreak()).flatten()
+}
 
 pub fn word() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // assembles individual words
@@ -107,9 +107,9 @@ pub fn whitespace() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
         .exactly(1)
 }
 
-// pub fn wordbreak() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     whitespace().or(newline())
-// }
+pub fn wordbreak() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    whitespace().or(newline())
+}
 
 #[cfg(test)]
 
@@ -207,47 +207,47 @@ mod test {
         assert_eq!(left, right);
     }
 
-    // #[test]
-    // fn wordbreak_xxx_with_whitespace() {
-    //     let src = " ";
-    //     let left = Some(vec![(Token::Whitespace(" ".to_string()), 0..1)]);
-    //     let (right, _err) = wordbreak().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn wordbreak_xxx_with_whitespace() {
+        let src = " ";
+        let left = Some(vec![Token::Whitespace(" ".to_string(), 0..1)]);
+        let (right, _err) = wordbreak().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
-    // #[test]
-    // fn wordbreak_xxx_with_newline() {
-    //     let src = "\n";
-    //     let left = Some(vec![(Token::Whitespace("\n".to_string()), 0..1)]);
-    //     let (right, _err) = wordbreak().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn wordbreak_xxx_with_newline() {
+        let src = "\n";
+        let left = Some(vec![Token::Whitespace("\n".to_string(), 0..1)]);
+        let (right, _err) = wordbreak().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
-    // #[test]
-    // fn empty_line_xxx_basic_test() {
-    //     let src = "\n\n";
-    //     let left = Some(vec![
-    //         (Token::Whitespace("\n".to_string()), 0..1),
-    //         (Token::Whitespace("\n".to_string()), 1..2),
-    //     ]);
-    //     let (right, _err) = empty_line().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn empty_line_xxx_basic_test() {
+        let src = "\n\n";
+        let left = Some(vec![
+            Token::Whitespace("\n".to_string(), 0..1),
+            Token::Whitespace("\n".to_string(), 1..2),
+        ]);
+        let (right, _err) = empty_line().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
-    // #[test]
-    // fn paragraph_xxx_basic() {
-    //     let src = "charlie papa mike";
-    //     let left = Some(vec![
-    //         (Token::String("c".to_string()), 0..1),
-    //         (Token::String("harlie".to_string()), 1..7),
-    //         (Token::String("p".to_string()), 8..9),
-    //         (Token::String("apa".to_string()), 9..12),
-    //         (Token::String("m".to_string()), 13..14),
-    //         (Token::String("ike".to_string()), 14..17),
-    //     ]);
-    //     let (right, _err) = paragraph().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn paragraph_xxx_basic() {
+        let src = "charlie papa mike";
+        let left = Some(vec![
+            Token::String("c".to_string(), 0..1),
+            Token::String("harlie".to_string(), 1..7),
+            Token::String("p".to_string(), 8..9),
+            Token::String("apa".to_string(), 9..12),
+            Token::String("m".to_string(), 13..14),
+            Token::String("ike".to_string(), 14..17),
+        ]);
+        let (right, _err) = paragraph().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
     //
 }
