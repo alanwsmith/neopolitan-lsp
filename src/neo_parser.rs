@@ -2,7 +2,7 @@ use chumsky::prelude::*;
 use chumsky::Parser;
 use std::ops::Range;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Text(String),
 }
@@ -33,9 +33,9 @@ mod test {
     #[test]
     fn non_less_than_char_test_letter() {
         let src = "a";
-        let left = Some(vec!['a']);
+        let left = Some(vec![(Token::Text("a".to_string()), 0..1)]);
         let (right, _err) = non_less_than_char().parse_recovery(src);
-        // assert_eq!(left, right);
+        assert_eq!(left, right);
     }
 
     //
