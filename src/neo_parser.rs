@@ -27,6 +27,9 @@ pub enum Token {
     Regexp(String, Range<usize>),
     Operator(String, Range<usize>),
     Decorator(String, Range<usize>),
+    // whitespace is not part of the spec
+    // it's here for the parsing only
+    Whitespace(String, Range<usize>),
 }
 
 pub fn dashes() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
@@ -43,16 +46,16 @@ pub fn dashes() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
 //     newline().chain(newline())
 // }
 
-// pub fn following_chars() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     // Used to pull characters in a word or string after the
-//     // starting characters
-//     none_of(" \n\t")
-//         .repeated()
-//         .collect::<String>()
-//         .map_with_span(|val, span| (Token::String(val), span))
-//         .repeated()
-//         .exactly(1)
-// }
+pub fn following_chars() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    // Used to pull characters in a word or string after the
+    // starting characters
+    none_of(" \n\t")
+        .repeated()
+        .collect::<String>()
+        .map_with_span(|val, span| Token::String(val, span))
+        .repeated()
+        .exactly(1)
+}
 
 pub fn initial_chars() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // The start of a word with either a single character or
@@ -91,10 +94,10 @@ pub fn non_less_than_char() -> impl Parser<char, Vec<Token>, Error = Simple<char
 //     word().separated_by(wordbreak()).flatten()
 // }
 
-// pub fn word() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     // assembles individual words
-//     initial_chars().chain(following_chars())
-// }
+pub fn word() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    // assembles individual words
+    initial_chars().chain(following_chars())
+}
 
 // pub fn whitespace() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
 //     just(" ")
@@ -168,25 +171,25 @@ mod test {
         assert_eq!(left, right);
     }
 
-    // #[test]
-    // fn following_chars_xxx_basic_test() {
-    //     let src = "elta echo";
-    //     let left = Some(vec![(Token::String("elta".to_string()), 0..4)]);
-    //     let (right, _err) = following_chars().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn following_chars_xxx_basic_test() {
+        let src = "elta echo";
+        let left = Some(vec![Token::String("elta".to_string(), 0..4)]);
+        let (right, _err) = following_chars().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
-    // #[test]
-    // fn word_xxx_with_leading_lt() {
-    //     let src = "<hotel";
-    //     let left = Some(vec![
-    //         (Token::String("<".to_string()), 0..1),
-    //         (Token::String("h".to_string()), 1..2),
-    //         (Token::String("otel".to_string()), 2..6),
-    //     ]);
-    //     let (right, _err) = word().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn word_xxx_with_leading_lt() {
+        let src = "<hotel";
+        let left = Some(vec![
+            Token::String("<".to_string(), 0..1),
+            Token::String("h".to_string(), 1..2),
+            Token::String("otel".to_string(), 2..6),
+        ]);
+        let (right, _err) = word().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
     // #[test]
     // fn whitespace_xxx_single_space() {
