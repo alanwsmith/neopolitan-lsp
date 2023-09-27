@@ -4,29 +4,30 @@ use std::ops::Range;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
-    Namespace(String, Range<usize>),
-    Type(String, Range<usize>),
     Class(String, Range<usize>),
+    Comment(String, Range<usize>),
+    Decorator(String, Range<usize>),
     Enum(String, Range<usize>),
-    Interface(String, Range<usize>),
-    Struct(String, Range<usize>),
-    TypeParameter(String, Range<usize>),
-    Parameter(String, Range<usize>),
-    Variable(String, Range<usize>),
-    Property(String, Range<usize>),
     EnumMember(String, Range<usize>),
     Event(String, Range<usize>),
     Function(String, Range<usize>),
-    Method(String, Range<usize>),
-    Macro(String, Range<usize>),
+    Interface(String, Range<usize>),
     Keyword(String, Range<usize>),
+    Macro(String, Range<usize>),
+    Method(String, Range<usize>),
     Modifier(String, Range<usize>),
-    Comment(String, Range<usize>),
-    String(String, Range<usize>),
+    Namespace(String, Range<usize>),
     Number(String, Range<usize>),
-    Regexp(String, Range<usize>),
     Operator(String, Range<usize>),
-    Decorator(String, Range<usize>),
+    Parameter(String, Range<usize>),
+    Property(String, Range<usize>),
+    Regexp(String, Range<usize>),
+    String(String, Range<usize>),
+    Struct(String, Range<usize>),
+    Type(String, Range<usize>),
+    TypeParameter(String, Range<usize>),
+    Variable(String, Range<usize>),
+
     // whitespace is not part of the spec
     // it's here for the parsing only
     Whitespace(String, Range<usize>),
@@ -36,7 +37,7 @@ pub fn dashes() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // two dashes followed by a single space as a leader for sections
     // and section attributes
     just("--")
-        .map_with_span(|val, span| Token::Comment(val.to_string(), span))
+        .map_with_span(|val, span| Token::Decorator(val.to_string(), span))
         .then_ignore(just(" ").repeated().at_least(1))
         .repeated()
         .exactly(1)
@@ -94,6 +95,29 @@ pub fn paragraph() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     word().separated_by(wordbreak()).flatten()
 }
 
+pub fn section_name() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    just("title")
+        .or(just("code"))
+        .or(just("h2"))
+        .map_with_span(|val, span| Token::Class(val.to_string(), span))
+        .repeated()
+        .exactly(1)
+}
+
+pub fn section_start() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    dashes().chain(section_name())
+}
+
+pub fn title_section() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    title_section_heading()
+        .then_ignore(empty_line())
+        .chain(paragraph())
+}
+
+pub fn title_section_heading() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    dashes().chain(just("title").map_with_span(|val, span| Token::Class(val.to_string(), span)))
+}
+
 pub fn word() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // assembles individual words
     initial_chars().chain(following_chars())
@@ -120,7 +144,7 @@ mod test {
     #[test]
     fn dashes_xxx_basic() {
         let src = "-- ";
-        let left = Some(vec![(Token::Comment("--".to_string(), 0..2))]);
+        let left = Some(vec![(Token::Decorator("--".to_string(), 0..2))]);
         let (right, _err) = dashes().parse_recovery(src);
         assert_eq!(left, right);
     }
@@ -246,6 +270,57 @@ mod test {
             Token::String("ike".to_string(), 14..17),
         ]);
         let (right, _err) = paragraph().parse_recovery(src);
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn section_name_xxx_basic() {
+        let src = "title";
+        let left = Some(vec![Token::Class("title".to_string(), 0..5)]);
+        let (right, _err) = section_name().parse_recovery(src);
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn section_start_xxx_basic() {
+        let src = "-- code";
+        let left = Some(vec![
+            Token::Decorator("--".to_string(), 0..2),
+            Token::Class("code".to_string(), 3..7),
+        ]);
+        let (right, _err) = section_start().parse_recovery(src);
+        assert_eq!(left, right);
+    }
+
+    ///////////////////////////////////////////
+    /// Secitons
+    ///////////////////////////////////////////
+
+    #[test]
+    fn title_section_heading_xxx_basic() {
+        let src = "-- title";
+        let left = Some(vec![
+            Token::Decorator("--".to_string(), 0..2),
+            Token::Class("title".to_string(), 3..8),
+        ]);
+        let (right, _err) = title_section_heading().parse_recovery(src);
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn title_section_xxx_basic() {
+        let src = "-- title\n\nalfa bravo charlie";
+        let left = Some(vec![
+            Token::Decorator("--".to_string(), 0..2),
+            Token::Class("title".to_string(), 3..8),
+            Token::String("a".to_string(), 10..11),
+            Token::String("lfa".to_string(), 11..14),
+            Token::String("b".to_string(), 15..16),
+            Token::String("ravo".to_string(), 16..20),
+            Token::String("c".to_string(), 21..22),
+            Token::String("harlie".to_string(), 22..28),
+        ]);
+        let (right, _err) = title_section().parse_recovery(src);
         assert_eq!(left, right);
     }
 
