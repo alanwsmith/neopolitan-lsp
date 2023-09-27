@@ -488,23 +488,238 @@ impl Backend {
                 .filter_map(|token| {
                     dbg!(&token);
                     match token {
-                        NeoToken::Class(_, span) => Some(ImCompleteSemanticToken {
-                            start: span.start,
-                            length: span.len(),
-                            token_type: LEGEND_TYPE
-                                .iter()
-                                .position(|item| item == &SemanticTokenType::CLASS)
-                                .unwrap(),
-                        }),
-                        NeoToken::Decorator(_, span) => Some(ImCompleteSemanticToken {
-                            start: span.start,
-                            length: span.len(),
-                            token_type: LEGEND_TYPE
-                                .iter()
-                                .position(|item| item == &SemanticTokenType::DECORATOR)
-                                .unwrap(),
-                        }),
-                        _  => None
+
+NeoToken::Class(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::CLASS)
+		.unwrap(),
+}),
+
+
+NeoToken::Comment(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::COMMENT)
+		.unwrap(),
+}),
+
+
+NeoToken::Decorator(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::DECORATOR)
+		.unwrap(),
+}),
+
+
+NeoToken::Enum(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::ENUM)
+		.unwrap(),
+}),
+
+
+NeoToken::EnumMember(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::ENUM_MEMBER)
+		.unwrap(),
+}),
+
+
+NeoToken::Event(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::EVENT)
+		.unwrap(),
+}),
+
+
+NeoToken::Function(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::FUNCTION)
+		.unwrap(),
+}),
+
+
+NeoToken::Interface(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::INTERFACE)
+		.unwrap(),
+}),
+
+
+NeoToken::Keyword(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::KEYWORD)
+		.unwrap(),
+}),
+
+
+NeoToken::Macro(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::MACRO)
+		.unwrap(),
+}),
+
+
+NeoToken::Method(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::METHOD)
+		.unwrap(),
+}),
+
+
+NeoToken::Modifier(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::MODIFIER)
+		.unwrap(),
+}),
+
+
+NeoToken::Namespace(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::NAMESPACE)
+		.unwrap(),
+}),
+
+
+NeoToken::Number(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::NUMBER)
+		.unwrap(),
+}),
+
+
+NeoToken::Operator(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::OPERATOR)
+		.unwrap(),
+}),
+
+
+NeoToken::Parameter(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::PARAMETER)
+		.unwrap(),
+}),
+
+
+NeoToken::Property(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::PROPERTY)
+		.unwrap(),
+}),
+
+
+NeoToken::Regexp(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::REGEXP)
+		.unwrap(),
+}),
+
+
+NeoToken::String(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::STRING)
+		.unwrap(),
+}),
+
+
+NeoToken::Struct(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::STRUCT)
+		.unwrap(),
+}),
+
+
+NeoToken::Type(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::TYPE)
+		.unwrap(),
+}),
+
+
+NeoToken::TypeParameter(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::TYPE_PARAMETER)
+		.unwrap(),
+}),
+
+
+NeoToken::Variable(_, span) => Some(ImCompleteSemanticToken {
+	start: span.start,
+	length: span.len(),
+	token_type: LEGEND_TYPE
+		.iter()
+		.position(|item| item == &SemanticTokenType::VARIABLE)
+		.unwrap(),
+}),
+_ => None
+
+
                     }
                 })
                 .collect::<Vec<_>>()
