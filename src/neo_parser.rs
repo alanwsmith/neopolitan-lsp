@@ -72,12 +72,12 @@ pub fn less_than_with_char() -> impl Parser<char, Vec<Token>, Error = Simple<cha
         .chain(non_less_than_char())
 }
 
-// pub fn newline() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     just("\n")
-//         .map_with_span(|val, span| (Token::Whitespace(val.to_string()), span))
-//         .repeated()
-//         .exactly(1)
-// }
+pub fn newline() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    just("\n")
+        .map_with_span(|val, span| Token::Whitespace(val.to_string(), span))
+        .repeated()
+        .exactly(1)
+}
 
 pub fn non_less_than_char() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     // word characters that aren't a lessthan or whitespace
@@ -99,13 +99,13 @@ pub fn word() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     initial_chars().chain(following_chars())
 }
 
-// pub fn whitespace() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
-//     just(" ")
-//         .or(just("\t"))
-//         .map_with_span(|val, span| (Token::Whitespace(val.to_string()), span))
-//         .repeated()
-//         .exactly(1)
-// }
+pub fn whitespace() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+    just(" ")
+        .or(just("\t"))
+        .map_with_span(|val, span| Token::Whitespace(val.to_string(), span))
+        .repeated()
+        .exactly(1)
+}
 
 // pub fn wordbreak() -> impl Parser<char, Vec<(Token, Range<usize>)>, Error = Simple<char>> {
 //     whitespace().or(newline())
@@ -191,21 +191,21 @@ mod test {
         assert_eq!(left, right);
     }
 
-    // #[test]
-    // fn whitespace_xxx_single_space() {
-    //     let src = " ";
-    //     let left = Some(vec![(Token::Whitespace(" ".to_string()), 0..1)]);
-    //     let (right, _err) = whitespace().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn whitespace_xxx_single_space() {
+        let src = " ";
+        let left = Some(vec![Token::Whitespace(" ".to_string(), 0..1)]);
+        let (right, _err) = whitespace().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
-    // #[test]
-    // fn newline_xxx_basic_() {
-    //     let src = "\n";
-    //     let left = Some(vec![(Token::Whitespace("\n".to_string()), 0..1)]);
-    //     let (right, _err) = newline().parse_recovery(src);
-    //     assert_eq!(left, right);
-    // }
+    #[test]
+    fn newline_xxx_basic() {
+        let src = "\n";
+        let left = Some(vec![Token::Whitespace("\n".to_string(), 0..1)]);
+        let (right, _err) = newline().parse_recovery(src);
+        assert_eq!(left, right);
+    }
 
     // #[test]
     // fn wordbreak_xxx_with_whitespace() {
