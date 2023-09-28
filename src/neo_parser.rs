@@ -56,10 +56,38 @@ pub fn following_chars() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char
     // starting characters
     none_of(" \n\t")
         .repeated()
+        .at_least(1)
         .collect::<String>()
         .map_with_span(|val, span| NeoToken::String(val, span))
         .repeated()
         .exactly(1)
+}
+
+pub fn h1_section() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    h1_section_heading()
+        .then_ignore(empty_line())
+        .chain(paragraph())
+}
+
+pub fn h1_section_heading() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    dashes().chain(just("h1").map_with_span(|val, span| NeoToken::Class(val.to_string(), span)))
+}
+
+// // pub fn section_parser() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+// pub fn section_parser() -> impl Recursive<char, _, Vec<NeoToken>, _, Error = Simple<char>> {
+//     // recursive(|_s| section2().repeated().at_least(1).flatten())
+//     recursive(|_s| just("asdf").map(|_| "asdf".to_string()))
+// }
+
+pub fn h2_section() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    h2_section_heading()
+        .then_ignore(empty_line())
+        .chain(section2())
+    // .map(|(a, b)| vec![])
+}
+
+pub fn h2_section_heading() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    dashes().chain(just("h2").map_with_span(|val, span| NeoToken::Class(val.to_string(), span)))
 }
 
 pub fn initial_chars() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
@@ -67,6 +95,11 @@ pub fn initial_chars() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>>
     // a single "<" followed by a non "<" character
     non_less_than_char().or(less_than_with_char())
 }
+
+// pub fn initial_paragraph_word() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+//     just("-- ").not()
+//     // non_less_than_char().or(less_than_with_char())
+// }
 
 pub fn less_than_with_char() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
     // for finding a less than at the start of a word
@@ -96,21 +129,57 @@ pub fn non_less_than_char() -> impl Parser<char, Vec<NeoToken>, Error = Simple<c
 }
 
 pub fn paragraph() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
-    word().separated_by(wordbreak()).flatten()
+    word()
+        .separated_by(wordbreak())
+        .at_least(1)
+        .flatten()
+        .then_ignore(empty_line().or_not())
 }
 
-pub fn section_name() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
-    just("title")
-        .or(just("code"))
-        .or(just("h2"))
-        .map_with_span(|val, span| NeoToken::Class(val.to_string(), span))
+pub fn section_body_paragraphs() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    paragraph().repeated().flatten()
+}
+
+pub fn section() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    title_section()
+        .or(h1_section())
+        // .or(h2_section())
         .repeated()
-        .exactly(1)
+        .at_least(1)
+        .flatten()
 }
 
-pub fn section_start() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
-    dashes().chain(section_name())
+pub fn section2() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+    let sp = recursive(|sp| {
+        title_section()
+            .or(h2_section())
+            .repeated()
+            .at_least(1)
+            .flatten()
+
+        // title_section()
+        //     .or(h1_section())
+        //     // .or(h2_section())
+        //     .repeated()
+        //     .at_least(1)
+        //     .flatten()
+    });
+    sp
+    //sp.parse("asdf")
 }
+
+// pub fn sections() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
+//     let s = recursive(|x| {
+//         section()
+//         // .title_section()
+//         // .or(h1_section())
+//         // .or(h2_section())
+//         // .repeated()
+//         // .at_least(1)
+//         // .flatten()
+//     });
+//     s
+// }
 
 pub fn title_section() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
     title_section_heading()
@@ -124,7 +193,9 @@ pub fn title_section_heading() -> impl Parser<char, Vec<NeoToken>, Error = Simpl
 
 pub fn word() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
     // assembles individual words
-    initial_chars().chain(following_chars())
+    // deal with cases with a leading "<" then
+    // do just initial_chars which after it
+    initial_chars().chain(following_chars()).or(initial_chars())
 }
 
 pub fn whitespace() -> impl Parser<char, Vec<NeoToken>, Error = Simple<char>> {
@@ -208,6 +279,17 @@ mod test {
     }
 
     #[test]
+    fn paragraph_start_word_xxx_allowed() {
+        let src = "foxtrot";
+        let left = Some(vec![
+            NeoToken::String("f".to_string(), 0..1),
+            NeoToken::String("oxtrot".to_string(), 1..7),
+        ]);
+        let (right, _err) = word().parse_recovery(src);
+        assert_eq!(left, right);
+    }
+
+    #[test]
     fn word_xxx_with_leading_lt() {
         let src = "<hotel";
         let left = Some(vec![
@@ -215,6 +297,14 @@ mod test {
             NeoToken::String("h".to_string(), 1..2),
             NeoToken::String("otel".to_string(), 2..6),
         ]);
+        let (right, _err) = word().parse_recovery(src);
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn word_xxx_single_character() {
+        let src = "a";
+        let left = Some(vec![NeoToken::String("a".to_string(), 0..1)]);
         let (right, _err) = word().parse_recovery(src);
         assert_eq!(left, right);
     }
@@ -251,6 +341,17 @@ mod test {
         assert_eq!(left, right);
     }
 
+    // #[test]
+    // fn initial_paragraph_word_xxx_allowed_word() {
+    //     let src = "foxtrot";
+    //     let left = Some(vec![
+    //         NeoToken::String("f".to_string(), 0..1),
+    //         NeoToken::String("oxtrot".to_string(), 0..1),
+    //     ]);
+    //     let (right, _err) = initial_paragraph_word().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
+
     #[test]
     fn empty_line_xxx_basic_test() {
         let src = "\n\n";
@@ -263,6 +364,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn paragraph_xxx_basic() {
         let src = "charlie papa mike";
         let left = Some(vec![
@@ -277,28 +379,74 @@ mod test {
         assert_eq!(left, right);
     }
 
-    #[test]
-    fn section_name_xxx_basic() {
-        let src = "title";
-        let left = Some(vec![NeoToken::Class("title".to_string(), 0..5)]);
-        let (right, _err) = section_name().parse_recovery(src);
-        assert_eq!(left, right);
-    }
+    // #[test]
+    // fn section_name_xxx_basic() {
+    //     let src = "title";
+    //     let left = Some(vec![NeoToken::Class("title".to_string(), 0..5)]);
+    //     let (right, _err) = section_name().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
+
+    // #[test]
+    // fn section_start_xxx_basic() {
+    //     let src = "-- code";
+    //     let left = Some(vec![
+    //         NeoToken::Decorator("--".to_string(), 0..2),
+    //         NeoToken::Class("code".to_string(), 3..7),
+    //     ]);
+    //     let (right, _err) = section_start().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
+
+    ///////////////////////////////////////////
+    /// Sections
+    ///////////////////////////////////////////
 
     #[test]
-    fn section_start_xxx_basic() {
-        let src = "-- code";
+    fn section_xxx_two_section() {
+        let src = "-- title\n\nalfa bravo\n\n-- h1\n\n charlie delta";
         let left = Some(vec![
             NeoToken::Decorator("--".to_string(), 0..2),
-            NeoToken::Class("code".to_string(), 3..7),
+            NeoToken::Class("title".to_string(), 3..8),
+            NeoToken::String("a".to_string(), 10..11),
+            NeoToken::String("lfa".to_string(), 11..14),
+            NeoToken::String("b".to_string(), 15..16),
+            NeoToken::String("ravo".to_string(), 16..20),
         ]);
-        let (right, _err) = section_start().parse_recovery(src);
+        // let section_parser = recursive(|_s| section2());
+        // dbg!(section_parser.parse(src));
+
+        // let (right, _err) = section_parser().parse(src);
+        // assert_eq!(left, right);
+    }
+
+    #[test]
+    fn h1_section_heading_xxx_basic() {
+        let src = "-- h1";
+        let left = Some(vec![
+            NeoToken::Decorator("--".to_string(), 0..2),
+            NeoToken::Class("h1".to_string(), 3..5),
+        ]);
+        let (right, _err) = h1_section_heading().parse_recovery(src);
         assert_eq!(left, right);
     }
 
-    ///////////////////////////////////////////
-    /// Secitons
-    ///////////////////////////////////////////
+    // #[test]
+    // fn h1_section_xxx_basic() {
+    //     let src = "-- h1\n\nalfa bravo charlie";
+    //     let left = Some(vec![
+    //         NeoToken::Decorator("--".to_string(), 0..2),
+    //         NeoToken::Class("title".to_string(), 3..8),
+    //         NeoToken::String("a".to_string(), 10..11),
+    //         NeoToken::String("lfa".to_string(), 11..14),
+    //         NeoToken::String("b".to_string(), 15..16),
+    //         NeoToken::String("ravo".to_string(), 16..20),
+    //         NeoToken::String("c".to_string(), 21..22),
+    //         NeoToken::String("harlie".to_string(), 22..28),
+    //     ]);
+    //     let (right, _err) = h1_section().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
 
     #[test]
     fn title_section_heading_xxx_basic() {
@@ -311,22 +459,46 @@ mod test {
         assert_eq!(left, right);
     }
 
-    #[test]
-    fn title_section_xxx_basic() {
-        let src = "-- title\n\nalfa bravo charlie";
-        let left = Some(vec![
-            NeoToken::Decorator("--".to_string(), 0..2),
-            NeoToken::Class("title".to_string(), 3..8),
-            NeoToken::String("a".to_string(), 10..11),
-            NeoToken::String("lfa".to_string(), 11..14),
-            NeoToken::String("b".to_string(), 15..16),
-            NeoToken::String("ravo".to_string(), 16..20),
-            NeoToken::String("c".to_string(), 21..22),
-            NeoToken::String("harlie".to_string(), 22..28),
-        ]);
-        let (right, _err) = title_section().parse_recovery(src);
-        assert_eq!(left, right);
-    }
+    // #[test]
+    // fn section_body_paragraphs_xxx_basic() {
+    //     let src = "a b c\n\nd e";
+    //     let left = Some(vec![
+    //         NeoToken::String("a".to_string(), 0..1),
+    //         NeoToken::String("b".to_string(), 2..3),
+    //         NeoToken::String("c".to_string(), 4..5),
+    //         NeoToken::String("d".to_string(), 7..8),
+    //         NeoToken::String("e".to_string(), 9..10),
+    //     ]);
+    //     let (right, _err) = section_body_paragraphs().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
+
+    // #[test]
+    // // #[ignore]
+    // fn section_body_paragraphs_xxx_stop_at_next_section() {
+    //     let src = "a b c\n\n-- title";
+    //     let left = Some(vec![
+    //         NeoToken::String("a".to_string(), 0..1),
+    //         NeoToken::String("b".to_string(), 2..3),
+    //         NeoToken::String("c".to_string(), 4..5),
+    //     ]);
+    //     let (right, _err) = section_body_paragraphs().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
+
+    // #[test]
+    // fn section_body_paragraphs_xxx_basic() {
+    //     let src = "a b c\n\nd e";
+    //     let left = Some(vec![
+    //         NeoToken::String("a".to_string(), 0..1),
+    //         NeoToken::String("b".to_string(), 2..3),
+    //         NeoToken::String("c".to_string(), 4..5),
+    //         NeoToken::String("d".to_string(), 21..22),
+    //         NeoToken::String("e".to_string(), 21..22),
+    //     ]);
+    //     let (right, _err) = section_body_paragraphs().parse_recovery(src);
+    //     assert_eq!(left, right);
+    // }
 
     //
 }
