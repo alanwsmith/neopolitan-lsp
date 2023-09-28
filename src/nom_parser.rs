@@ -9,6 +9,7 @@ use nom::character::complete::one_of;
 use nom::character::complete::space0;
 use nom::combinator::opt;
 use nom::multi::many1;
+use nom::multi::separated_list0;
 use nom::multi::separated_list1;
 use nom::sequence::pair;
 use nom::IResult;
@@ -94,6 +95,40 @@ pub fn initial_word_chars(source: Span) -> IResult<Span, Vec<NomToken>> {
     // get the first character of a word that
     // allows for a "<", but not two in a row
     let (source, response) = alt((non_lt_char, lt_with_non_lt_char))(source)?;
+    Ok((source, response))
+}
+
+pub fn key_value_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, _) = tag("\n")(source)?;
+    let (source, mut response) = dashes(source)?;
+    let (source, key_start) = position(source)?;
+    let (source, key_value) = is_not(":")(source)?;
+    let (source, key_end) = position(source)?;
+    let key_attr = NomToken::Comment(
+        key_value.to_string(),
+        key_start.location_offset(),
+        key_end.location_offset(),
+    );
+    response.push(key_attr);
+    let (source, colon_start) = position(source)?;
+    let (source, colon_value) = tag(":")(source)?;
+    let (source, colon_end) = position(source)?;
+    let colon = NomToken::Comment(
+        colon_value.to_string(),
+        colon_start.location_offset(),
+        colon_end.location_offset(),
+    );
+    response.push(colon);
+    let (source, _) = space0(source)?;
+    let (source, val_start) = position(source)?;
+    let (source, val_value) = is_not("\n")(source)?;
+    let (source, val_end) = position(source)?;
+    let val_attr = NomToken::Comment(
+        val_value.to_string(),
+        val_start.location_offset(),
+        val_end.location_offset(),
+    );
+    response.push(val_attr);
     Ok((source, response))
 }
 
@@ -185,14 +220,25 @@ pub fn paragraph_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
         tag("warning"),
         tag("youtube"),
     ))(source)?;
-    let (source, _) = space0(source)?;
     let (source, end) = position(source)?;
-    let (source, _) = empty_line(source)?;
     response.push(NomToken::Class(
         name.to_string(),
         start.location_offset(),
         end.location_offset(),
     ));
+    let (source, _) = space0(source)?;
+    // dbg!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    // dbg!(&source);
+    let (source, attrs) = opt(separated_list0(tag("\n"), key_value_attribute))(source)?;
+    if let Some(attrs) = attrs {
+        response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+    }
+
+    // dbg!("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+    // dbg!(&source);
+    let (source, _) = empty_line(source)?;
+    // dbg!("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+    // dbg!(&source);
     let (source, mut paragraphs) = paragraphs(source)?;
     response.append(&mut paragraphs);
     // paragraphs
@@ -339,6 +385,19 @@ mod test {
             NomToken::String("f".to_string(), 1, 2),
         ];
         let right = initial_word_chars(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_key_value_attribute() {
+        let source = Span::new("\n-- alfa: bravo");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 1, 3),
+            NomToken::Comment("alfa".to_string(), 4, 8),
+            NomToken::Comment(":".to_string(), 8, 9),
+            NomToken::Comment("bravo".to_string(), 10, 15),
+        ];
+        let right = key_value_attribute(source).unwrap().1;
         assert_eq!(left, right);
     }
 
@@ -521,6 +580,26 @@ mod test {
             NomToken::String("lfa".to_string(), 11, 14),
             NomToken::String("B".to_string(), 16, 17),
             NomToken::String("ravo".to_string(), 17, 21),
+        ];
+        let right = paragraph_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    // #[ignore]
+    pub fn test_title_with_key_value_attributes() {
+        let source = Span::new("-- title\n-- delta: echo\n\nAlfa\n\nBravo");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("title".to_string(), 3, 8),
+            NomToken::Decorator("--".to_string(), 9, 11),
+            NomToken::Comment("delta".to_string(), 12, 17),
+            NomToken::Comment(":".to_string(), 17, 18),
+            NomToken::Comment("echo".to_string(), 19, 23),
+            NomToken::String("A".to_string(), 25, 26),
+            NomToken::String("lfa".to_string(), 26, 29),
+            NomToken::String("B".to_string(), 31, 32),
+            NomToken::String("ravo".to_string(), 32, 36),
         ];
         let right = paragraph_type_section(source).unwrap().1;
         assert_eq!(left, right);
