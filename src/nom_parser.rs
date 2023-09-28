@@ -99,7 +99,7 @@ pub fn initial_word_chars(source: Span) -> IResult<Span, Vec<NomToken>> {
 }
 
 pub fn key_value_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, _) = tag("\n")(source)?;
+    let (source, _) = multispace0(source)?;
     let (source, mut response) = dashes(source)?;
     let (source, key_start) = position(source)?;
     let (source, key_value) = is_not(":")(source)?;
