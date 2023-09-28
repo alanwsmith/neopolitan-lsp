@@ -147,7 +147,7 @@ pub fn paragraph(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, mut response) = initial_paragraph_word(source)?;
     let (source, _) = space0(source)?;
     let (source, items) = opt(separated_list1(wordbreak, word))(source)?;
-    if let Some(mut items) = items {
+    if let Some(items) = items {
         response.append(&mut items.into_iter().flatten().collect::<Vec<NomToken>>());
     }
     // items.into_iter().for_each(|mut i| response.append(&mut i));
@@ -160,23 +160,31 @@ pub fn paragraph(source: Span) -> IResult<Span, Vec<NomToken>> {
     ))
 }
 
-pub fn paragraphs(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, items) = separated_list1(empty_line, paragraph)(source)?;
-    Ok((
-        source,
-        items.into_iter().flatten().collect::<Vec<NomToken>>(),
-    ))
-}
-
-pub fn section(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, response) = alt((title_section, h1_section))(source)?;
-    Ok((source, response))
-}
-
-pub fn title_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+pub fn paragraph_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, mut response) = dashes(source)?;
     let (source, start) = position(source)?;
-    let (source, name) = tag("title")(source)?;
+    let (source, name) = alt((
+        tag("aside"),
+        tag("blockquote"),
+        tag("bookmark"),
+        tag("footnote"),
+        tag("h1"),
+        tag("h2"),
+        tag("h3"),
+        tag("h4"),
+        tag("h5"),
+        tag("h6"),
+        tag("hr"),
+        tag("image"),
+        tag("note"),
+        tag("p"),
+        tag("reference"),
+        tag("subtitle"),
+        tag("title"),
+        tag("vimeo"),
+        tag("warning"),
+        tag("youtube"),
+    ))(source)?;
     let (source, _) = space0(source)?;
     let (source, end) = position(source)?;
     let (source, _) = empty_line(source)?;
@@ -193,22 +201,55 @@ pub fn title_section(source: Span) -> IResult<Span, Vec<NomToken>> {
     Ok((source, response))
 }
 
-pub fn h1_section(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, mut response) = dashes(source)?;
-    let (source, start) = position(source)?;
-    let (source, name) = tag("h1")(source)?;
-    let (source, _) = space0(source)?;
-    let (source, end) = position(source)?;
-    let (source, _) = empty_line(source)?;
-    response.push(NomToken::Class(
-        name.to_string(),
-        start.location_offset(),
-        end.location_offset(),
-    ));
-    let (source, mut paragraphs) = paragraphs(source)?;
-    response.append(&mut paragraphs);
+pub fn paragraphs(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, items) = separated_list1(empty_line, paragraph)(source)?;
+    Ok((
+        source,
+        items.into_iter().flatten().collect::<Vec<NomToken>>(),
+    ))
+}
+
+pub fn section(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, response) = alt((paragraph_type_section, paragraph_type_section))(source)?;
     Ok((source, response))
 }
+
+// pub fn title_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+//     let (source, mut response) = dashes(source)?;
+//     let (source, start) = position(source)?;
+//     let (source, name) = tag("title")(source)?;
+//     let (source, _) = space0(source)?;
+//     let (source, end) = position(source)?;
+//     let (source, _) = empty_line(source)?;
+//     response.push(NomToken::Class(
+//         name.to_string(),
+//         start.location_offset(),
+//         end.location_offset(),
+//     ));
+//     let (source, mut paragraphs) = paragraphs(source)?;
+//     response.append(&mut paragraphs);
+//     // paragraphs
+//     //     .iter_mut()
+//     //     .for_each(|mut p| response.append(&mut p));
+//     Ok((source, response))
+// }
+
+// pub fn h1_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+//     let (source, mut response) = dashes(source)?;
+//     let (source, start) = position(source)?;
+//     let (source, name) = tag("h1")(source)?;
+//     let (source, _) = space0(source)?;
+//     let (source, end) = position(source)?;
+//     let (source, _) = empty_line(source)?;
+//     response.push(NomToken::Class(
+//         name.to_string(),
+//         start.location_offset(),
+//         end.location_offset(),
+//     ));
+//     let (source, mut paragraphs) = paragraphs(source)?;
+//     response.append(&mut paragraphs);
+//     Ok((source, response))
+// }
 
 pub fn whitespace(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, _) = is_a(" \t")(source)?;
@@ -426,6 +467,21 @@ mod test {
         assert_eq!(left, right);
     }
 
+    // SECTION TYPES
+
+    #[test]
+    pub fn test_paragraph_type_section() {
+        let source = Span::new("-- h1\n\nAlfa");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("h1".to_string(), 3, 5),
+            NomToken::String("A".to_string(), 7, 8),
+            NomToken::String("lfa".to_string(), 8, 11),
+        ];
+        let right = paragraph_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
     // SECTION TESTS
 
     #[test]
@@ -450,7 +506,7 @@ mod test {
             NomToken::String("A".to_string(), 7, 8),
             NomToken::String("lfa".to_string(), 8, 11),
         ];
-        let right = h1_section(source).unwrap().1;
+        let right = paragraph_type_section(source).unwrap().1;
         assert_eq!(left, right);
     }
 
@@ -466,23 +522,25 @@ mod test {
             NomToken::String("B".to_string(), 16, 17),
             NomToken::String("ravo".to_string(), 17, 21),
         ];
-        let right = title_section(source).unwrap().1;
+        let right = paragraph_type_section(source).unwrap().1;
         assert_eq!(left, right);
     }
 
-    #[test]
-    // #[ignore]
-    pub fn test_title_section_with_leading_space() {
-        let source = Span::new("-- title \n\nAlfa\n\nBravo");
-        let left = vec![
-            NomToken::Decorator("--".to_string(), 0, 2),
-            NomToken::Class("title".to_string(), 3, 9),
-            NomToken::String("A".to_string(), 11, 12),
-            NomToken::String("lfa".to_string(), 12, 15),
-            NomToken::String("B".to_string(), 17, 18),
-            NomToken::String("ravo".to_string(), 18, 22),
-        ];
-        let right = title_section(source).unwrap().1;
-        assert_eq!(left, right);
-    }
+    //     #[test]
+    //     // #[ignore]
+    //     pub fn test_title_section_with_leading_space() {
+    //         let source = Span::new("-- title \n\nAlfa\n\nBravo");
+    //         let left = vec![
+    //             NomToken::Decorator("--".to_string(), 0, 2),
+    //             NomToken::Class("title".to_string(), 3, 9),
+    //             NomToken::String("A".to_string(), 11, 12),
+    //             NomToken::String("lfa".to_string(), 12, 15),
+    //             NomToken::String("B".to_string(), 17, 18),
+    //             NomToken::String("ravo".to_string(), 18, 22),
+    //         ];
+    //         let right = title_section(source).unwrap().1;
+    //         assert_eq!(left, right);
+    //     }
+
+    //
 }

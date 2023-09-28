@@ -518,7 +518,8 @@ impl Backend {
                             length: end - start,
                             token_type: LEGEND_TYPE
                                 .iter()
-                                .position(|item| item == &SemanticTokenType::COMMENT)
+                                // .position(|item| item == &SemanticTokenType::COMMENT)
+                                .position(|item| item == &SemanticTokenType::DECORATOR)
                                 .unwrap(),
                         }),
 
