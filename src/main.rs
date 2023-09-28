@@ -5,9 +5,10 @@ use dashmap::DashMap;
 use nrs_language_server::chumsky::{type_inference, Func, ImCompleteSemanticToken};
 use nrs_language_server::completion::completion;
 use nrs_language_server::jump_definition::get_definition;
+// use nrs_language_server::neo_parser::*;
+use nrs_language_server::nom_parser::*;
 use nrs_language_server::reference::get_reference;
 use nrs_language_server::semantic_token::{semantic_token_from_ast, LEGEND_TYPE};
-use nrs_language_server::neo_parser::*;
 use ropey::Rope;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -468,263 +469,244 @@ impl Notification for CustomNotification {
     type Params = InlayHintParams;
     const METHOD: &'static str = "custom/notification";
 }
+#[allow(dead_code)]
 struct TextDocumentItem {
     uri: Url,
     text: String,
     version: i32,
 }
+
 impl Backend {
     async fn on_change(&self, params: TextDocumentItem) {
         let rope = ropey::Rope::from_str(&params.text);
         self.document_map
             .insert(params.uri.to_string(), rope.clone());
 
-        let (base_tokens, errors) = neo_parse(&params.text);
+        // let (base_tokens, errors) = neo_parse(&params.text);
+
+        let base_tokens = match nom_parse(&params.text) {
+            Ok((_, tokens)) => Some(tokens),
+            _ => None,
+        };
 
         let semantic_tokens = match base_tokens {
-            Some(tokens) => {
-                tokens
+            Some(tokens) => tokens
                 .iter()
                 .filter_map(|token| {
                     dbg!(&token);
                     match token {
+                        NomToken::Class(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::CLASS)
+                                .unwrap(),
+                        }),
 
-NeoToken::Class(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::CLASS)
-		.unwrap(),
-}),
+                        NomToken::Comment(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::COMMENT)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Decorator(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::COMMENT)
+                                .unwrap(),
+                        }),
 
-NeoToken::Comment(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::COMMENT)
-		.unwrap(),
-}),
+                        NomToken::Enum(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::ENUM)
+                                .unwrap(),
+                        }),
 
+                        NomToken::EnumMember(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::ENUM_MEMBER)
+                                .unwrap(),
+                        }),
 
-NeoToken::Decorator(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::DECORATOR)
-		.unwrap(),
-}),
+                        NomToken::Event(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::EVENT)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Function(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::FUNCTION)
+                                .unwrap(),
+                        }),
 
-NeoToken::Enum(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::ENUM)
-		.unwrap(),
-}),
+                        NomToken::Interface(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::INTERFACE)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Keyword(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::KEYWORD)
+                                .unwrap(),
+                        }),
 
-NeoToken::EnumMember(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::ENUM_MEMBER)
-		.unwrap(),
-}),
+                        NomToken::Macro(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::MACRO)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Method(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::METHOD)
+                                .unwrap(),
+                        }),
 
-NeoToken::Event(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::EVENT)
-		.unwrap(),
-}),
+                        NomToken::Modifier(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::MODIFIER)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Namespace(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::NAMESPACE)
+                                .unwrap(),
+                        }),
 
-NeoToken::Function(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::FUNCTION)
-		.unwrap(),
-}),
+                        NomToken::Number(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::NUMBER)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Operator(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::OPERATOR)
+                                .unwrap(),
+                        }),
 
-NeoToken::Interface(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::INTERFACE)
-		.unwrap(),
-}),
+                        NomToken::Parameter(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::PARAMETER)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Property(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::PROPERTY)
+                                .unwrap(),
+                        }),
 
-NeoToken::Keyword(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::KEYWORD)
-		.unwrap(),
-}),
+                        NomToken::Regexp(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::REGEXP)
+                                .unwrap(),
+                        }),
 
+                        NomToken::String(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::STRING)
+                                // .position(|item| item == &SemanticTokenType::DECORATOR)
+                                .unwrap(),
+                        }),
 
-NeoToken::Macro(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::MACRO)
-		.unwrap(),
-}),
+                        NomToken::Struct(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::STRUCT)
+                                .unwrap(),
+                        }),
 
+                        NomToken::Type(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::TYPE)
+                                .unwrap(),
+                        }),
 
-NeoToken::Method(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::METHOD)
-		.unwrap(),
-}),
+                        NomToken::TypeParameter(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::TYPE_PARAMETER)
+                                .unwrap(),
+                        }),
 
-
-NeoToken::Modifier(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::MODIFIER)
-		.unwrap(),
-}),
-
-
-NeoToken::Namespace(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::NAMESPACE)
-		.unwrap(),
-}),
-
-
-NeoToken::Number(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::NUMBER)
-		.unwrap(),
-}),
-
-
-NeoToken::Operator(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::OPERATOR)
-		.unwrap(),
-}),
-
-
-NeoToken::Parameter(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::PARAMETER)
-		.unwrap(),
-}),
-
-
-NeoToken::Property(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::PROPERTY)
-		.unwrap(),
-}),
-
-
-NeoToken::Regexp(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::REGEXP)
-		.unwrap(),
-}),
-
-
-NeoToken::String(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::STRING)
-		.unwrap(),
-}),
-
-
-NeoToken::Struct(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::STRUCT)
-		.unwrap(),
-}),
-
-
-NeoToken::Type(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::TYPE)
-		.unwrap(),
-}),
-
-
-NeoToken::TypeParameter(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::TYPE_PARAMETER)
-		.unwrap(),
-}),
-
-
-NeoToken::Variable(_, span) => Some(ImCompleteSemanticToken {
-	start: span.start,
-	length: span.len(),
-	token_type: LEGEND_TYPE
-		.iter()
-		.position(|item| item == &SemanticTokenType::VARIABLE)
-		.unwrap(),
-}),
-_ => None
-
-
+                        NomToken::Variable(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::VARIABLE)
+                                .unwrap(),
+                        }),
+                        _ => None,
                     }
                 })
-                .collect::<Vec<_>>()
-            }
-            None => vec![]
+                .collect::<Vec<_>>(),
+            None => vec![],
         };
 
         // let semantic_tokens = base_tokens
@@ -732,17 +714,17 @@ _ => None
         // .filter_map(|token| {
         //     dbg!(&token);
         //     match token {
-        //         NeoToken::Class(_, span) => Some(ImCompleteSemanticToken {
-        //             start: span.start,
-        //             length: span.len(),
+        //         NomToken::Class(_, start, end) => Some(ImCompleteSemanticToken {
+        //             start: *start,
+        //             length: end - start,
         //             token_type: LEGEND_TYPE
         //                 .iter()
         //                 .position(|item| item == &SemanticTokenType::CLASS)
         //                 .unwrap(),
         //         }),
-        //         NeoToken::Decorator(_, span) => Some(ImCompleteSemanticToken {
-        //             start: span.start,
-        //             length: span.len(),
+        //         NomToken::Decorator(_, start, end) => Some(ImCompleteSemanticToken {
+        //             start: *start,
+        //             length: end - start,
         //             token_type: LEGEND_TYPE
         //                 .iter()
         //                 .position(|item| item == &SemanticTokenType::DECORATOR)
@@ -753,26 +735,16 @@ _ => None
         // })
         // .collect::<Vec<_>>();
 
+        let ast: Option<HashMap<String, Func>> = Some(HashMap::new());
+        // let _errors = Vec::new();
+        // let semantic_tokens = vec![];
 
-
-    let ast: Option<HashMap<String, Func>> = Some(HashMap::new());
-    // let _errors = Vec::new();
-    // let semantic_tokens = vec![];
-
-
-
-    // (Some(ast), Vec::new(), semantic_tokens)
-
-
-
-
-
+        // (Some(ast), Vec::new(), semantic_tokens)
 
         // let (ast, _errors, semantic_tokens) = parse(&params.text);
         // self.client
         //     .log_message(MessageType::INFO, format!("{:?}", errors))
         //     .await;
-
 
         // let diagnostics = errors
         //     .into_iter()
@@ -806,10 +778,10 @@ _ => None
         //             chumsky::error::SimpleReason::Custom(msg) => (msg.to_string(), item.span()),
         //         };
         //         || -> Option<Diagnostic> {
-        //             // let start_line = rope.try_char_to_line(span.start)?;
+        //             // let start_line = rope.try_char_to_line(*start)?;
         //             // let first_char = rope.try_line_to_char(start_line)?;
-        //             // let start_column = span.start - first_char;
-        //             let start_position = offset_to_position(span.start, &rope)?;
+        //             // let start_column = *start - first_char;
+        //             let start_position = offset_to_position(*start, &rope)?;
         //             let end_position = offset_to_position(span.end, &rope)?;
         //             // let end_line = rope.try_char_to_line(span.end)?;
         //             // let first_char = rope.try_line_to_char(end_line)?;
@@ -826,11 +798,9 @@ _ => None
         //     .publish_diagnostics(params.uri.clone(), diagnostics, Some(params.version))
         //     .await;
 
-
         if let Some(ast) = ast {
             self.ast_map.insert(params.uri.to_string(), ast);
         }
-
 
         // self.client
         //     .log_message(MessageType::INFO, &format!("{:?}", semantic_tokens))
@@ -868,7 +838,7 @@ fn offset_to_position(offset: usize, rope: &Rope) -> Option<Position> {
 
 /////////////////////////////////////////////////////////////////
 
-use chumsky::prelude::*;
+// use chumsky::prelude::*;
 // use chumsky::Parser;
 
 // type Span = std::ops::Range<usize>;
@@ -960,51 +930,46 @@ use chumsky::prelude::*;
 //     section().repeated().flatten()
 // }
 
-fn parse(
-    src: &str,
-) -> (
-    Option<HashMap<String, Func>>,
-    Vec<Simple<String>>,
-    Vec<ImCompleteSemanticToken>,
-) {
-    // let tokens = sections().parse(src).unwrap();
-    // dbg!(tokens);
-
-    // let semantic_tokens = tokens
-    //     .iter()
-    //     .filter_map(|token| {
-    //         dbg!(&token);
-    //         match token {
-    //             _ => None 
-    //             // (Token::Word(_), _) => Some(ImCompleteSemanticToken {
-    //             //     start: token.1.start,
-    //             //     length: token.1.len(),
-    //             //     token_type: LEGEND_TYPE
-    //             //         .iter()
-    //             //         .position(|item| item == &SemanticTokenType::NUMBER)
-    //             //         .unwrap(),
-    //             // }),
-    //             // (Token::SectionHead(_), _) => Some(ImCompleteSemanticToken {
-    //             //     start: token.1.start,
-    //             //     length: token.1.len(),
-    //             //     token_type: LEGEND_TYPE
-    //             //         .iter()
-    //             //         .position(|item| item == &SemanticTokenType::KEYWORD)
-    //             //         .unwrap(),
-    //             // }),
-    //         }
-    //     })
-    //     .collect::<Vec<_>>();
-
-    let semantic_tokens = vec![];
-
-    let ast: HashMap<String, Func> = HashMap::new();
-
-    // let _st = vec![ImCompleteSemanticToken {
-    //     start: 0,
-    //     length: 5,
-    //     token_type: 5,
-    // }];
-
-    (Some(ast), Vec::new(), semantic_tokens)
-}
+// fn parse(
+//     src: &str,
+// ) -> (
+//     Option<HashMap<String, Func>>,
+//     Vec<Simple<String>>,
+//     Vec<ImCompleteSemanticToken>,
+// ) {
+//     // let tokens = sections().parse(src).unwrap();
+//     // dbg!(tokens);
+//     // let semantic_tokens = tokens
+//     //     .iter()
+//     //     .filter_map(|token| {
+//     //         dbg!(&token);
+//     //         match token {
+//     //             _ => None
+//     //             // (Token::Word(_), _) => Some(ImCompleteSemanticToken {
+//     //             //     start: token.1.start,
+//     //             //     length: token.1.len(),
+//     //             //     token_type: LEGEND_TYPE
+//     //             //         .iter()
+//     //             //         .position(|item| item == &SemanticTokenType::NUMBER)
+//     //             //         .unwrap(),
+//     //             // }),
+//     //             // (Token::SectionHead(_), _) => Some(ImCompleteSemanticToken {
+//     //             //     start: token.1.start,
+//     //             //     length: token.1.len(),
+//     //             //     token_type: LEGEND_TYPE
+//     //             //         .iter()
+//     //             //         .position(|item| item == &SemanticTokenType::KEYWORD)
+//     //             //         .unwrap(),
+//     //             // }),
+//     //         }
+//     //     })
+//     //     .collect::<Vec<_>>();
+//     let semantic_tokens = vec![];
+//     let ast: HashMap<String, Func> = HashMap::new();
+//     // let _st = vec![ImCompleteSemanticToken {
+//     //     start: 0,
+//     //     length: 5,
+//     //     token_type: 5,
+//     // }];
+//     (Some(ast), Vec::new(), semantic_tokens)
+// }

@@ -198,7 +198,7 @@ pub enum BinaryOp {
 
 pub type Spanned<T> = (T, Span);
 
-// An expression node in the AST. Children are spanned so 
+// An expression node in the AST. Children are spanned so
 // we can generate useful runtime errors.
 #[derive(Debug)]
 pub enum Expr {
@@ -558,10 +558,6 @@ pub fn type_inference(expr: &Spanned<Expr>, symbol_type_table: &mut HashMap<Span
     }
 }
 
-
-
-
-
 pub fn _parse(
     src: &str,
 ) -> (
@@ -569,9 +565,9 @@ pub fn _parse(
     Vec<Simple<String>>,
     Vec<ImCompleteSemanticToken>,
 ) {
-    let (tokens, errs) = lexer().parse_recovery(src);
+    let (tokens, _errs) = lexer().parse_recovery(src);
 
-    let (ast, tokenize_errors, semantic_tokens) = if let Some(tokens) = tokens {
+    let (ast, _tokenize_errors, semantic_tokens) = if let Some(tokens) = tokens {
         // info!("Tokens = {:?}", tokens);
         let semantic_tokens = tokens
             .iter()
@@ -670,27 +666,29 @@ pub fn _parse(
         (None, Vec::new(), vec![])
     };
 
-    let parse_errors = errs
-        .into_iter()
-        .map(|e| e.map(|c| c.to_string()))
-        .chain(
-            tokenize_errors
-                .into_iter()
-                .map(|e| e.map(|tok| tok.to_string())),
-        )
-        .collect::<Vec<_>>();
+    // let parse_errors = errs
+    //     .into_iter()
+    //     .map(|e| e.map(|c| c.to_string()))
+    //     .chain(
+    //         tokenize_errors
+    //             .into_iter()
+    //             .map(|e| e.map(|tok| tok.to_string())),
+    //     )
+    //     .collect::<Vec<_>>();
 
     dbg!(&ast);
     dbg!(&semantic_tokens);
-
 
     // (ast, parse_errors, semantic_tokens)
     // (ast, Vec::new(), semantic_tokens)
     let hm: HashMap<String, Func> = HashMap::new();
     // (Some(hm), Vec::new(), semantic_tokens)
-    let st = vec![ImCompleteSemanticToken{ start:0, length: 5, token_type:5 }];
+    let st = vec![ImCompleteSemanticToken {
+        start: 0,
+        length: 5,
+        token_type: 5,
+    }];
     (Some(hm), Vec::new(), st)
-    
 
     // .for_each(|e| {
     //     let report = match e.reason() {
@@ -700,4 +698,3 @@ pub fn _parse(
     //     };
     // });
 }
-
