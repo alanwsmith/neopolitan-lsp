@@ -4,6 +4,7 @@ use nom::bytes::complete::is_a;
 use nom::bytes::complete::is_not;
 use nom::bytes::complete::tag;
 use nom::character::complete::multispace0;
+use nom::character::complete::newline;
 use nom::character::complete::none_of;
 use nom::character::complete::one_of;
 use nom::character::complete::space0;
@@ -43,6 +44,42 @@ pub enum NomToken {
     TypeParameter(String, usize, usize),
     Variable(String, usize, usize),
     Whitespace,
+}
+
+pub fn attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, attr) = alt((key_value_attribute, boolean_attribute))(source)?;
+    Ok((source, attr))
+}
+
+pub fn boolean_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
+    // dbg!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    // dbg!(source);
+    let (source, _) = multispace0(source)?;
+    // dbg!("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+    // dbg!(source);
+    let (source, mut response) = dashes(source)?;
+    // dbg!("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+    // dbg!(source);
+    let (source, key_start) = position(source)?;
+    // dbg!("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
+    // dbg!(source);
+    let (source, key_value) = is_not(":\n")(source)?;
+    // dbg!("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
+    // dbg!(source);
+    // let (source, _) = space0(source)?;
+    // dbg!("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    // dbg!(source);
+    // let (source, _) = newline(source)?;
+    // dbg!("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
+    // dbg!(source);
+    let (source, key_end) = position(source)?;
+    let key_attr = NomToken::Comment(
+        key_value.to_string(),
+        key_start.location_offset(),
+        key_end.location_offset(),
+    );
+    response.push(key_attr);
+    Ok((source, response))
 }
 
 pub fn dashes(source: Span) -> IResult<Span, Vec<NomToken>> {
@@ -102,7 +139,7 @@ pub fn key_value_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, _) = multispace0(source)?;
     let (source, mut response) = dashes(source)?;
     let (source, key_start) = position(source)?;
-    let (source, key_value) = is_not(":")(source)?;
+    let (source, key_value) = is_not(":\n")(source)?;
     let (source, key_end) = position(source)?;
     let key_attr = NomToken::Comment(
         key_value.to_string(),
@@ -227,23 +264,13 @@ pub fn paragraph_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
         end.location_offset(),
     ));
     let (source, _) = space0(source)?;
-    // dbg!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    // dbg!(&source);
-    let (source, attrs) = opt(separated_list0(tag("\n"), key_value_attribute))(source)?;
+    let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
     if let Some(attrs) = attrs {
         response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
     }
-
-    // dbg!("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
-    // dbg!(&source);
     let (source, _) = empty_line(source)?;
-    // dbg!("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
-    // dbg!(&source);
     let (source, mut paragraphs) = paragraphs(source)?;
     response.append(&mut paragraphs);
-    // paragraphs
-    //     .iter_mut()
-    //     .for_each(|mut p| response.append(&mut p));
     Ok((source, response))
 }
 
@@ -333,6 +360,17 @@ pub fn wordbreak(source: Span) -> IResult<Span, Vec<NomToken>> {
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
+
+    #[test]
+    pub fn test_boolean_attribute() {
+        let source = Span::new("\n-- sierra\n");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 1, 3),
+            NomToken::Comment("sierra".to_string(), 4, 10),
+        ];
+        let right = boolean_attribute(source).unwrap().1;
+        assert_eq!(left, right);
+    }
 
     #[test]
     pub fn test_dashes() {
@@ -527,6 +565,7 @@ mod test {
     }
 
     // SECTION TYPES
+    //
 
     #[test]
     pub fn test_paragraph_type_section() {
@@ -588,18 +627,37 @@ mod test {
     #[test]
     // #[ignore]
     pub fn test_title_with_key_value_attributes() {
-        let source = Span::new("-- title\n-- delta: echo\n\nAlfa\n\nBravo");
+        let source = Span::new("-- title\n-- autofocus\n-- delta: echo\n\nAlfa\n\nBravo");
         let left = vec![
             NomToken::Decorator("--".to_string(), 0, 2),
             NomToken::Class("title".to_string(), 3, 8),
             NomToken::Decorator("--".to_string(), 9, 11),
-            NomToken::Comment("delta".to_string(), 12, 17),
-            NomToken::Comment(":".to_string(), 17, 18),
-            NomToken::Comment("echo".to_string(), 19, 23),
-            NomToken::String("A".to_string(), 25, 26),
-            NomToken::String("lfa".to_string(), 26, 29),
-            NomToken::String("B".to_string(), 31, 32),
-            NomToken::String("ravo".to_string(), 32, 36),
+            NomToken::Comment("autofocus".to_string(), 12, 21),
+            NomToken::Decorator("--".to_string(), 22, 24),
+            NomToken::Comment("delta".to_string(), 25, 30),
+            NomToken::Comment(":".to_string(), 30, 31),
+            NomToken::Comment("echo".to_string(), 32, 36),
+            NomToken::String("A".to_string(), 38, 39),
+            NomToken::String("lfa".to_string(), 39, 42),
+            NomToken::String("B".to_string(), 44, 45),
+            NomToken::String("ravo".to_string(), 45, 49),
+        ];
+        let right = paragraph_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+
+    #[test]
+    // #[ignore]
+    pub fn test_title_with_boolean_attributes() {
+        let source = Span::new("-- title\n-- b\n\nAlfa");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("title".to_string(), 3, 8),
+            NomToken::Decorator("--".to_string(), 9, 11),
+            NomToken::Comment("b".to_string(), 12, 13),
+            NomToken::String("A".to_string(), 15, 16),
+            NomToken::String("lfa".to_string(), 16, 19),
         ];
         let right = paragraph_type_section(source).unwrap().1;
         assert_eq!(left, right);
