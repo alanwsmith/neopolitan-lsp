@@ -82,6 +82,27 @@ pub fn boolean_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
     Ok((source, response))
 }
 
+pub fn code_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, mut response) = dashes(source)?;
+    let (source, start) = position(source)?;
+    let (source, name) = alt((tag("code"), tag("css"), tag("pre"), tag("script")))(source)?;
+    let (source, end) = position(source)?;
+    response.push(NomToken::Class(
+        name.to_string(),
+        start.location_offset(),
+        end.location_offset(),
+    ));
+    let (source, _) = space0(source)?;
+    let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
+    if let Some(attrs) = attrs {
+        response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+    }
+    let (source, _) = empty_line(source)?;
+    let (source, mut paragraphs) = paragraphs(source)?;
+    response.append(&mut paragraphs);
+    Ok((source, response))
+}
+
 pub fn dashes(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, start) = position(source)?;
     let (source, _) = tag("--")(source)?;
@@ -190,6 +211,29 @@ pub fn single_newline(source: Span) -> IResult<Span, Vec<NomToken>> {
     Ok((source, vec![NomToken::Whitespace]))
 }
 
+pub fn metadata_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, mut response) = dashes(source)?;
+    let (source, start) = position(source)?;
+    let (source, name) = alt((tag("metadata"), tag("metadata")))(source)?;
+    let (source, end) = position(source)?;
+    response.push(NomToken::Class(
+        name.to_string(),
+        start.location_offset(),
+        end.location_offset(),
+    ));
+
+    let (source, _) = space0(source)?;
+    let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
+    if let Some(attrs) = attrs {
+        response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+    }
+    // let (source, _) = empty_line(source)?;
+    // let (source, mut paragraphs) = paragraphs(source)?;
+    // response.append(&mut paragraphs);
+
+    Ok((source, response))
+}
+
 pub fn nom_parse(text: &str) -> IResult<Span, Vec<NomToken>> {
     let source = Span::new(text);
     let (source, response) = separated_list1(empty_line, section)(source)?;
@@ -283,7 +327,11 @@ pub fn paragraphs(source: Span) -> IResult<Span, Vec<NomToken>> {
 }
 
 pub fn section(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, response) = alt((paragraph_type_section, paragraph_type_section))(source)?;
+    let (source, response) = alt((
+        paragraph_type_section,
+        metadata_type_section,
+        code_type_section,
+    ))(source)?;
     Ok((source, response))
 }
 
@@ -583,6 +631,22 @@ mod test {
     // SECTION TESTS
 
     #[test]
+    // #[ignore]
+    pub fn test_code_section() {
+        let source = Span::new("-- code\n-- b\n\nAlfa");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("code".to_string(), 3, 7),
+            NomToken::Decorator("--".to_string(), 8, 10),
+            NomToken::Comment("b".to_string(), 11, 12),
+            NomToken::String("A".to_string(), 14, 15),
+            NomToken::String("lfa".to_string(), 15, 18),
+        ];
+        let right = code_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
     pub fn test_section() {
         let source = Span::new("-- h1\n\nAlfa");
         let left = vec![
@@ -592,6 +656,21 @@ mod test {
             NomToken::String("lfa".to_string(), 8, 11),
         ];
         let right = section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_metadata_type_section() {
+        let source = Span::new("-- metadata\n-- id: asdf");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("metadata".to_string(), 3, 11),
+            NomToken::Decorator("--".to_string(), 12, 14),
+            NomToken::Comment("id".to_string(), 15, 17),
+            NomToken::Comment(":".to_string(), 17, 18),
+            NomToken::Comment("asdf".to_string(), 19, 23),
+        ];
+        let right = metadata_type_section(source).unwrap().1;
         assert_eq!(left, right);
     }
 
@@ -646,7 +725,6 @@ mod test {
         assert_eq!(left, right);
     }
 
-
     #[test]
     // #[ignore]
     pub fn test_title_with_boolean_attributes() {
@@ -662,22 +740,6 @@ mod test {
         let right = paragraph_type_section(source).unwrap().1;
         assert_eq!(left, right);
     }
-
-    //     #[test]
-    //     // #[ignore]
-    //     pub fn test_title_section_with_leading_space() {
-    //         let source = Span::new("-- title \n\nAlfa\n\nBravo");
-    //         let left = vec![
-    //             NomToken::Decorator("--".to_string(), 0, 2),
-    //             NomToken::Class("title".to_string(), 3, 9),
-    //             NomToken::String("A".to_string(), 11, 12),
-    //             NomToken::String("lfa".to_string(), 12, 15),
-    //             NomToken::String("B".to_string(), 17, 18),
-    //             NomToken::String("ravo".to_string(), 18, 22),
-    //         ];
-    //         let right = title_section(source).unwrap().1;
-    //         assert_eq!(left, right);
-    //     }
 
     //
 }

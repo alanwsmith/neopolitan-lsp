@@ -1,14 +1,23 @@
 -- title
--- wer
+-- autofocus
+-- class: alfa 
 
-asf
+This is file
+
+Alfa thing
+
+-- h3
+-- id: asdf
+
+asdf
+
+More here
+
+-- code
+
+asdf
 
 
-
--- categories
--- Miscellaneous
-
--- groups
 
 -- metadata
 -- date: 2023-09-28 21:01:50
@@ -16,5 +25,6 @@ asf
 -- site: aws
 -- template: post
 -- status: unpublished
+
 
 
