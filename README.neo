@@ -1,0 +1,16 @@
+-- title
+
+Neopolitan LSP
+
+-- notes
+
+- A basic LSP for Neopolitan syntax
+highlighting
+
+- No other features are implemented 
+(e.g. no completion, hints)
+
+
+
+
+
