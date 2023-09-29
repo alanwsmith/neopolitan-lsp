@@ -3,16 +3,19 @@ use nom::branch::alt;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::is_not;
 use nom::bytes::complete::tag;
+use nom::character::complete::anychar;
 use nom::character::complete::multispace0;
 use nom::character::complete::newline;
 use nom::character::complete::none_of;
 use nom::character::complete::one_of;
 use nom::character::complete::space0;
+use nom::character::complete::space1;
 use nom::combinator::opt;
 use nom::multi::many1;
 use nom::multi::separated_list0;
 use nom::multi::separated_list1;
 use nom::sequence::pair;
+use nom::sequence::terminated;
 use nom::IResult;
 use nom_locate::{position, LocatedSpan};
 
@@ -44,6 +47,21 @@ pub enum NomToken {
     TypeParameter(String, usize, usize),
     Variable(String, usize, usize),
     Whitespace,
+
+    //
+    // Starting to put in specific things
+    // to separate the tokens on nom
+    // from the output tokens to make them
+    // easier to test and change
+    ListDash(String, usize, usize),
+}
+
+pub fn attributes(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, attr) = many1(terminated(attribute, opt(blank_line)))(source)?;
+    Ok((
+        source,
+        attr.into_iter().flatten().collect::<Vec<NomToken>>(),
+    ))
 }
 
 pub fn attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
@@ -51,10 +69,17 @@ pub fn attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
     Ok((source, attr))
 }
 
+pub fn blank_line(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, _) = space0(source)?;
+    let (source, _) = newline(source)?;
+    Ok((source, vec![]))
+}
+
 pub fn boolean_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
     // dbg!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     // dbg!(source);
-    let (source, _) = multispace0(source)?;
+    // let (source, _) = multispace0(source)?;
+    // let (source, _) = multispace0(source)?;
     // dbg!("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
     // dbg!(source);
     let (source, mut response) = dashes(source)?;
@@ -93,6 +118,7 @@ pub fn code_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
         end.location_offset(),
     ));
     let (source, _) = space0(source)?;
+    let (source, _) = newline(source)?;
     let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
     if let Some(attrs) = attrs {
         response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
@@ -157,7 +183,8 @@ pub fn initial_word_chars(source: Span) -> IResult<Span, Vec<NomToken>> {
 }
 
 pub fn key_value_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, _) = multispace0(source)?;
+    // let (source, _) = multispace0(source)?;
+    // let (source, _) = multispace0(source)?;
     let (source, mut response) = dashes(source)?;
     let (source, key_start) = position(source)?;
     let (source, key_value) = is_not(":\n")(source)?;
@@ -190,6 +217,46 @@ pub fn key_value_attribute(source: Span) -> IResult<Span, Vec<NomToken>> {
     Ok((source, response))
 }
 
+pub fn list_item(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, start) = position(source)?;
+    let (source, name) = tag("-")(source)?;
+    let (source, end) = position(source)?;
+    let dash = NomToken::ListDash(
+        name.to_string(),
+        start.location_offset(),
+        end.location_offset(),
+    );
+    let (source, _) = space1(source)?;
+    let mut response = vec![dash];
+    let (source, mut paragraphs) = paragraphs(source)?;
+    response.append(&mut paragraphs);
+    Ok((source, response))
+}
+
+pub fn list_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, mut response) = dashes(source)?;
+    let (source, start) = position(source)?;
+    let (source, name) = alt((tag("list"), tag("notes"), tag("warnings")))(source)?;
+    let (source, end) = position(source)?;
+    response.push(NomToken::Class(
+        name.to_string(),
+        start.location_offset(),
+        end.location_offset(),
+    ));
+    let (source, _) = space0(source)?;
+    let (source, _) = newline(source)?;
+    let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
+    if let Some(attrs) = attrs {
+        response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+    }
+    let (source, _) = empty_line(source)?;
+    let (source, list_items) = opt(separated_list0(empty_line, list_item))(source)?;
+    if let Some(list_items) = list_items {
+        response.append(&mut list_items.into_iter().flatten().collect::<Vec<NomToken>>());
+    }
+    Ok((source, response))
+}
+
 pub fn lt_with_non_lt_char(source: Span) -> IResult<Span, Vec<NomToken>> {
     // A less than with a trailing non less than
     // character
@@ -206,37 +273,38 @@ pub fn lt_with_non_lt_char(source: Span) -> IResult<Span, Vec<NomToken>> {
     Ok((source, response))
 }
 
-pub fn single_newline(source: Span) -> IResult<Span, Vec<NomToken>> {
-    let (source, _) = tag("\n")(source)?;
-    Ok((source, vec![NomToken::Whitespace]))
-}
-
 pub fn metadata_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
+    // dbg!("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
+    // dbg!(source);
     let (source, mut response) = dashes(source)?;
     let (source, start) = position(source)?;
-    let (source, name) = alt((tag("metadata"), tag("metadata")))(source)?;
+    let (source, name) = alt((tag("metadata"), tag("categories"), tag("group")))(source)?;
     let (source, end) = position(source)?;
     response.push(NomToken::Class(
         name.to_string(),
         start.location_offset(),
         end.location_offset(),
     ));
+    let (source, _) = blank_line(source)?;
 
-    let (source, _) = space0(source)?;
-    let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
-    if let Some(attrs) = attrs {
-        response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+    // let (source, _) = space0(source)?;
+    // let (source, _) = newline(source)?;
+    // let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
+    let (source, attrs) = opt(attributes)(source)?;
+    if let Some(mut attrs) = attrs {
+        // response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+        response.append(&mut attrs);
     }
-    // let (source, _) = empty_line(source)?;
-    // let (source, mut paragraphs) = paragraphs(source)?;
-    // response.append(&mut paragraphs);
 
+    let (source, _) = opt(blank_line)(source)?;
+    // dbg!("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
+    // dbg!(source);
     Ok((source, response))
 }
 
 pub fn nom_parse(text: &str) -> IResult<Span, Vec<NomToken>> {
     let source = Span::new(text);
-    let (source, response) = separated_list1(empty_line, section)(source)?;
+    let (source, response) = many1(section)(source)?;
     Ok((
         source,
         response.into_iter().flatten().collect::<Vec<NomToken>>(),
@@ -308,11 +376,13 @@ pub fn paragraph_type_section(source: Span) -> IResult<Span, Vec<NomToken>> {
         end.location_offset(),
     ));
     let (source, _) = space0(source)?;
-    let (source, attrs) = opt(separated_list0(tag("\n"), attribute))(source)?;
-    if let Some(attrs) = attrs {
-        response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+    let (source, _) = newline(source)?;
+    let (source, attrs) = opt(attributes)(source)?;
+    if let Some(mut attrs) = attrs {
+        // response.append(&mut attrs.into_iter().flatten().collect::<Vec<NomToken>>());
+        response.append(&mut attrs);
     }
-    let (source, _) = empty_line(source)?;
+    let (source, _) = blank_line(source)?;
     let (source, mut paragraphs) = paragraphs(source)?;
     response.append(&mut paragraphs);
     Ok((source, response))
@@ -327,50 +397,34 @@ pub fn paragraphs(source: Span) -> IResult<Span, Vec<NomToken>> {
 }
 
 pub fn section(source: Span) -> IResult<Span, Vec<NomToken>> {
+    // dbg!("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
+    // dbg!(source);
     let (source, response) = alt((
         paragraph_type_section,
         metadata_type_section,
         code_type_section,
+        list_type_section,
     ))(source)?;
+    let (source, _) = opt(empty_line)(source)?;
     Ok((source, response))
 }
 
-// pub fn title_section(source: Span) -> IResult<Span, Vec<NomToken>> {
-//     let (source, mut response) = dashes(source)?;
-//     let (source, start) = position(source)?;
-//     let (source, name) = tag("title")(source)?;
-//     let (source, _) = space0(source)?;
-//     let (source, end) = position(source)?;
-//     let (source, _) = empty_line(source)?;
-//     response.push(NomToken::Class(
-//         name.to_string(),
-//         start.location_offset(),
-//         end.location_offset(),
-//     ));
-//     let (source, mut paragraphs) = paragraphs(source)?;
-//     response.append(&mut paragraphs);
-//     // paragraphs
-//     //     .iter_mut()
-//     //     .for_each(|mut p| response.append(&mut p));
-//     Ok((source, response))
-// }
+pub fn single_character_word(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, start) = position(source)?;
+    let (source, the_char) = none_of(" \n")(source)?;
+    let (source, end) = position(source)?;
+    let response = vec![NomToken::String(
+        the_char.to_string(),
+        start.location_offset(),
+        end.location_offset(),
+    )];
+    Ok((source, response))
+}
 
-// pub fn h1_section(source: Span) -> IResult<Span, Vec<NomToken>> {
-//     let (source, mut response) = dashes(source)?;
-//     let (source, start) = position(source)?;
-//     let (source, name) = tag("h1")(source)?;
-//     let (source, _) = space0(source)?;
-//     let (source, end) = position(source)?;
-//     let (source, _) = empty_line(source)?;
-//     response.push(NomToken::Class(
-//         name.to_string(),
-//         start.location_offset(),
-//         end.location_offset(),
-//     ));
-//     let (source, mut paragraphs) = paragraphs(source)?;
-//     response.append(&mut paragraphs);
-//     Ok((source, response))
-// }
+pub fn single_newline(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, _) = tag("\n")(source)?;
+    Ok((source, vec![NomToken::Whitespace]))
+}
 
 pub fn whitespace(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, _) = is_a(" \t")(source)?;
@@ -378,6 +432,11 @@ pub fn whitespace(source: Span) -> IResult<Span, Vec<NomToken>> {
 }
 
 pub fn word(source: Span) -> IResult<Span, Vec<NomToken>> {
+    let (source, response) = alt((word_base, single_character_word))(source)?;
+    Ok((source, response))
+}
+
+pub fn word_base(source: Span) -> IResult<Span, Vec<NomToken>> {
     let (source, mut response) = initial_word_chars(source)?;
     let (source, mut part_two) = following_word_chars(source)?;
     response.append(&mut part_two);
@@ -410,11 +469,32 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
-    pub fn test_boolean_attribute() {
-        let source = Span::new("\n-- sierra\n");
+    pub fn test_attributes() {
+        let source = Span::new("-- sierra\n-- bravo\n");
         let left = vec![
-            NomToken::Decorator("--".to_string(), 1, 3),
-            NomToken::Comment("sierra".to_string(), 4, 10),
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Comment("sierra".to_string(), 3, 9),
+            NomToken::Decorator("--".to_string(), 10, 12),
+            NomToken::Comment("bravo".to_string(), 13, 18),
+        ];
+        let right = attributes(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_blank_line() {
+        let source = Span::new("  \n");
+        let left = "";
+        let right = blank_line(source).unwrap().0;
+        assert_eq!(left.to_string(), right.fragment().to_string());
+    }
+
+    #[test]
+    pub fn test_boolean_attribute() {
+        let source = Span::new("-- sierra\n");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Comment("sierra".to_string(), 3, 9),
         ];
         let right = boolean_attribute(source).unwrap().1;
         assert_eq!(left, right);
@@ -476,14 +556,28 @@ mod test {
 
     #[test]
     pub fn test_key_value_attribute() {
-        let source = Span::new("\n-- alfa: bravo");
+        let source = Span::new("-- alfa: bravo");
         let left = vec![
-            NomToken::Decorator("--".to_string(), 1, 3),
-            NomToken::Comment("alfa".to_string(), 4, 8),
-            NomToken::Comment(":".to_string(), 8, 9),
-            NomToken::Comment("bravo".to_string(), 10, 15),
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Comment("alfa".to_string(), 3, 7),
+            NomToken::Comment(":".to_string(), 7, 8),
+            NomToken::Comment("bravo".to_string(), 9, 14),
         ];
         let right = key_value_attribute(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_list_item() {
+        let source = Span::new("- papa sierra");
+        let left = vec![
+            NomToken::ListDash("-".to_string(), 0, 1),
+            NomToken::String("p".to_string(), 2, 3),
+            NomToken::String("apa".to_string(), 3, 6),
+            NomToken::String("s".to_string(), 7, 8),
+            NomToken::String("ierra".to_string(), 8, 13),
+        ];
+        let right = list_item(source).unwrap().1;
         assert_eq!(left, right);
     }
 
@@ -562,6 +656,14 @@ mod test {
             NomToken::String("harlie".to_string(), 14, 20),
         ];
         let right = paragraphs(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_single_character_word() {
+        let source = Span::new("<");
+        let left = vec![NomToken::String("<".to_string(), 0, 1)];
+        let right = single_character_word(source).unwrap().1;
         assert_eq!(left, right);
     }
 
@@ -660,7 +762,24 @@ mod test {
     }
 
     #[test]
-    pub fn test_metadata_type_section() {
+    // #[ignore]
+    pub fn test_list_type_section() {
+        let source = Span::new("-- notes\n-- b\n\n- Alfa");
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("notes".to_string(), 3, 8),
+            NomToken::Decorator("--".to_string(), 9, 11),
+            NomToken::Comment("b".to_string(), 12, 13),
+            NomToken::ListDash("-".to_string(), 15, 16),
+            NomToken::String("A".to_string(), 17, 18),
+            NomToken::String("lfa".to_string(), 18, 21),
+        ];
+        let right = list_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_metadata_type_section_basic() {
         let source = Span::new("-- metadata\n-- id: asdf");
         let left = vec![
             NomToken::Decorator("--".to_string(), 0, 2),
@@ -671,6 +790,25 @@ mod test {
             NomToken::Comment("asdf".to_string(), 19, 23),
         ];
         let right = metadata_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    pub fn test_metadata_type_sections_next_to_each_other() {
+        let source = "-- categories\n-- Rust\n\n-- metadata\n-- id: tango";
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("categories".to_string(), 3, 13),
+            NomToken::Decorator("--".to_string(), 14, 16),
+            NomToken::Comment("Rust".to_string(), 17, 21),
+            NomToken::Decorator("--".to_string(), 23, 25),
+            NomToken::Class("metadata".to_string(), 26, 34),
+            NomToken::Decorator("--".to_string(), 35, 37),
+            NomToken::Comment("id".to_string(), 38, 40),
+            NomToken::Comment(":".to_string(), 40, 41),
+            NomToken::Comment("tango".to_string(), 42, 47),
+        ];
+        let right = nom_parse(source).unwrap().1;
         assert_eq!(left, right);
     }
 
@@ -738,6 +876,26 @@ mod test {
             NomToken::String("lfa".to_string(), 16, 19),
         ];
         let right = paragraph_type_section(source).unwrap().1;
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    // #[ignore]
+    pub fn test_integration_basic() {
+        let source = "-- title\n\nAlfa\n\n-- h2\n\nBravo a b";
+        let left = vec![
+            NomToken::Decorator("--".to_string(), 0, 2),
+            NomToken::Class("title".to_string(), 3, 8),
+            NomToken::String("A".to_string(), 10, 11),
+            NomToken::String("lfa".to_string(), 11, 14),
+            NomToken::Decorator("--".to_string(), 16, 18),
+            NomToken::Class("h2".to_string(), 19, 21),
+            NomToken::String("B".to_string(), 23, 24),
+            NomToken::String("ravo".to_string(), 24, 28),
+            NomToken::String("a".to_string(), 29, 30),
+            NomToken::String("b".to_string(), 31, 32),
+        ];
+        let right = nom_parse(source).unwrap().1;
         assert_eq!(left, right);
     }
 

@@ -1,30 +1,23 @@
--- title
--- autofocus
--- class: alfa 
+-- title 
 
-This is file
+Neopolitan Syntax Highlighting Test
 
-Alfa thing
+-- h2
 
--- h3
--- id: asdf
+Details
 
-asdf
+Test run of a LSP highlighter
 
-More here
-
--- code
-
-asdf
-
-
+-- categories
+-- Miscellaneous
 
 -- metadata
--- date: 2023-09-28 21:01:50
--- id: 2w37g8gj
+-- date: 2023-09-28 22:00:49
+-- id: 2w3eqltz
 -- site: aws
 -- template: post
 -- status: unpublished
+
 
 
 

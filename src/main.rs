@@ -495,6 +495,17 @@ impl Backend {
                 .filter_map(|token| {
                     dbg!(&token);
                     match token {
+                        NomToken::ListDash(_, start, end) => Some(ImCompleteSemanticToken {
+                            start: *start,
+                            length: end - start,
+                            token_type: LEGEND_TYPE
+                                .iter()
+                                .position(|item| item == &SemanticTokenType::COMMENT)
+                                .unwrap(),
+                        }),
+
+                        // These are the original classes. TODO is to remove them in
+                        // favor of parer specific ones
                         NomToken::Class(_, start, end) => Some(ImCompleteSemanticToken {
                             start: *start,
                             length: end - start,
